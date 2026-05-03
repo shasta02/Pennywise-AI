@@ -1,0 +1,63 @@
+{
+  "entities": {
+    "user": {
+      "title": "User Profile",
+      "description": "Basic user information and settings.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "displayName": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "plaidAccessToken": { "type": "string", "description": "Stored encrypted if possible, but here for PoC" }
+      },
+      "required": ["uid", "email"]
+    },
+    "transaction": {
+      "title": "Transaction",
+      "description": "A spending record, imported from Plaid or manually added, with adjustment support.",
+      "type": "object",
+      "properties": {
+        "transactionId": { "type": "string" },
+        "userId": { "type": "string" },
+        "amount": { "type": "number", "description": "Original amount from bank" },
+        "adjustedAmount": { "type": "number", "description": "User adjusted amount (e.g. after venmo)" },
+        "date": { "type": "string", "format": "date" },
+        "name": { "type": "string" },
+        "category": { "type": "string" },
+        "merchantName": { "type": "string" },
+        "isAdjusted": { "type": "boolean" },
+        "aiCategory": { "type": "string", "description": "The category suggested by AI" },
+        "pending": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "amount", "date", "name"]
+    },
+    "budget": {
+      "title": "Budget",
+      "description": "Monthly spending targets for categories.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "category": { "type": "string" },
+        "limit": { "type": "number" },
+        "month": { "type": "string", "description": "e.g. 2024-05" }
+      },
+      "required": ["userId", "category", "limit", "month"]
+    }
+  },
+  "firestore": {
+    "users": {
+      "schema": "user",
+      "description": "User profiles"
+    },
+    "transactions": {
+      "schema": "transaction",
+      "description": "User transactions"
+    },
+    "budgets": {
+      "schema": "budget",
+      "description": "User budgets"
+    }
+  }
+}

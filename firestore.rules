@@ -1,0 +1,93 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default Deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper Functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 256;
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // Entity Validations
+    function isValidUser(data) {
+      return data.uid == request.auth.uid 
+             && data.email is string && data.email.size() <= 256
+             && (!('displayName' in data) || data.displayName == null || data.displayName is string)
+             && (!('createdAt' in data) || data.createdAt is timestamp)
+             && (!('updatedAt' in data) || data.updatedAt is timestamp);
+    }
+
+    function isValidTransaction(data) {
+      return data.userId == request.auth.uid
+             && data.amount is number
+             && (('name' in data && data.name is string) || ('description' in data && data.description is string))
+             && data.date is string && data.date.size() <= 64
+             && (!('category' in data) || data.category is string)
+             && (!('adjustedAmount' in data) || data.adjustedAmount is number)
+             && (!('isAdjusted' in data) || data.isAdjusted is bool)
+             && (!('source' in data) || data.source is string)
+             && (!('status' in data) || data.status is string)
+             && (!('aiCategory' in data) || data.aiCategory is string)
+             && (!('createdAt' in data) || data.createdAt is timestamp)
+             && (!('updatedAt' in data) || data.updatedAt is timestamp);
+    }
+
+    function isValidBudget(data) {
+      return data.userId == request.auth.uid
+             && data.category is string && data.category.size() <= 50
+             && data.limit is number
+             && data.month is string && data.month.size() <= 7
+             && (!('createdAt' in data) || data.createdAt is timestamp)
+             && (!('updatedAt' in data) || data.updatedAt is timestamp);
+    }
+
+    // Routes
+    match /users/{userId} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId) && isValidUser(incoming());
+      allow update: if isOwner(userId) && isValidUser(incoming())
+                    && incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'plaidAccessToken', 'updatedAt']);
+    }
+
+    match /transactions/{transactionId} {
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow get: if isSignedIn() && (resource == null || resource.data.userId == request.auth.uid);
+      allow create: if isOwner(incoming().userId) 
+                    && isValidTransaction(incoming());
+      allow update: if isOwner(existing().userId) && isValidTransaction(incoming())
+                    && (
+                      // Action: Adjustment or AI Categorization
+                      incoming().diff(existing()).affectedKeys().hasOnly(['adjustedAmount', 'isAdjusted', 'category', 'aiCategory', 'status', 'updatedAt'])
+                    );
+      allow delete: if isOwner(existing().userId);
+    }
+
+    match /budgets/{budgetId} {
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow get: if isSignedIn() && (resource == null || resource.data.userId == request.auth.uid) && isValidId(budgetId);
+      allow create: if isOwner(incoming().userId) && isValidBudget(incoming()) && isValidId(budgetId);
+      allow update: if isOwner(existing().userId) && isValidBudget(incoming()) && isValidId(budgetId)
+                    && incoming().diff(existing()).affectedKeys().hasOnly(['limit', 'updatedAt']);
+      allow delete: if isOwner(existing().userId) && isValidId(budgetId);
+    }
+  }
+}

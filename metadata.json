@@ -1,0 +1,6 @@
+{
+  "name": "PennyWise: AI Budget Manager",
+  "description": "A smart budget app with Plaid integration, AI categorization, and manual expense adjustment for shared costs.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}
